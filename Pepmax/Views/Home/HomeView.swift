@@ -3,6 +3,8 @@ import SwiftUI
 struct HomeView: View {
     @EnvironmentObject var store: AppStore
     @Environment(\.isDarkMode) private var isDarkMode
+    @Binding var selectedTab: Int
+    @State private var showSettings = false
     
     private var theme: LiquidGlassTheme { isDarkMode ? .dark : .light }
     
@@ -45,6 +47,11 @@ struct HomeView: View {
                 .padding(.bottom, 100)
             }
             .background(theme.background.ignoresSafeArea())
+            .sheet(isPresented: $showSettings) {
+                SettingsView()
+                    .environmentObject(store)
+                    .environment(\.isDarkMode, isDarkMode)
+            }
         }
     }
     
@@ -54,10 +61,10 @@ struct HomeView: View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Welcome back")
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
                     .foregroundStyle(theme.textMuted)
                 Text("Pepmax")
-                    .font(.system(size: 32, weight: .bold))
+                    .font(.system(size: 32, weight: .bold, design: .rounded))
                     .foregroundStyle(theme.text)
                     .overlay {
                         LinearGradient(
@@ -67,20 +74,25 @@ struct HomeView: View {
                         )
                         .mask(
                             Text("Pepmax")
-                                .font(.system(size: 32, weight: .bold))
+                                .font(.system(size: 32, weight: .bold, design: .rounded))
                         )
                     }
             }
             Spacer()
-            // Profile avatar
-            ZStack {
-                Circle()
-                    .fill(theme.primaryGlow)
-                    .frame(width: 48, height: 48)
-                Image(systemName: store.profile.gender.icon)
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(theme.primary)
+            // Profile avatar -> Settings
+            Button {
+                showSettings = true
+            } label: {
+                ZStack {
+                    Circle()
+                        .fill(theme.primaryGlow)
+                        .frame(width: 48, height: 48)
+                    Image(systemName: "gearshape.fill")
+                        .font(.system(size: 20, weight: .semibold, design: .rounded))
+                        .foregroundStyle(theme.primary)
+                }
             }
+            .buttonStyle(.plain)
         }
         .padding(.top, 8)
     }
@@ -184,9 +196,17 @@ struct HomeView: View {
     
     private var statsRow: some View {
         HStack(spacing: 12) {
-            statCard(title: "Peptides", value: "\(store.peptides.count)", icon: "pills.fill", color: theme.primary)
-            statCard(title: "Injections", value: "\(store.totalInjections)", icon: "syringe.fill", color: theme.success)
-            statCard(title: "Categories", value: "\(store.uniqueCategories.count)", icon: "square.grid.2x2.fill", color: Color(hex: "6C5CE7"))
+            Button { selectedTab = 3 } label: {
+                statCard(title: "Peptides", value: "\(store.peptides.count)", icon: "pills.fill", color: theme.primary)
+            }.buttonStyle(.plain)
+            
+            Button { selectedTab = 1 } label: {
+                statCard(title: "Injections", value: "\(store.totalInjections)", icon: "syringe.fill", color: theme.success)
+            }.buttonStyle(.plain)
+            
+            Button { selectedTab = 3 } label: {
+                statCard(title: "Categories", value: "\(store.uniqueCategories.count)", icon: "square.grid.2x2.fill", color: Color(hex: "6C5CE7"))
+            }.buttonStyle(.plain)
         }
     }
     
@@ -213,110 +233,120 @@ struct HomeView: View {
         let tip = DailyTips.todaysTip
         let tipColor = Color(hex: tip.color)
         
-        return GlassCard(padding: 14) {
-            HStack(spacing: 14) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(tipColor.opacity(0.12))
-                        .frame(width: 44, height: 44)
-                    Image(systemName: tip.icon)
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(tipColor)
-                }
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 6) {
-                        Text("💡")
-                            .font(.system(size: 10))
-                        Text("Daily Tip")
-                            .font(.system(size: 11, weight: .semibold))
+        return Button {
+            Haptics.notification(.success)
+        } label: {
+            GlassCard(padding: 14) {
+                HStack(spacing: 14) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(tipColor.opacity(0.12))
+                            .frame(width: 44, height: 44)
+                        Image(systemName: tip.icon)
+                            .font(.system(size: 18, weight: .semibold))
                             .foregroundStyle(tipColor)
                     }
-                    Text(tip.title)
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(theme.text)
-                    Text(tip.body)
-                        .font(.system(size: 12, weight: .regular))
-                        .foregroundStyle(theme.textMuted)
-                        .lineSpacing(2)
-                        .lineLimit(3)
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 6) {
+                            Text("💡")
+                                .font(.system(size: 10))
+                            Text("Daily Tip")
+                                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                .foregroundStyle(tipColor)
+                        }
+                        Text(tip.title)
+                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .foregroundStyle(theme.text)
+                        Text(tip.body)
+                            .font(.system(size: 12, weight: .regular, design: .rounded))
+                            .foregroundStyle(theme.textMuted)
+                            .lineSpacing(2)
+                            .lineLimit(3)
+                    }
                 }
             }
         }
+        .buttonStyle(.plain)
     }
     
     // MARK: - Active Cycle
     
     private var activeCycleCard: some View {
-        GlassCard {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(theme.success)
-                            .frame(width: 8, height: 8)
-                        Text("Active Cycle")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundStyle(theme.text)
+        Button {
+            selectedTab = 1
+        } label: {
+            GlassCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(theme.success)
+                                .frame(width: 8, height: 8)
+                            Text("Active Cycle")
+                                .font(.system(size: 16, weight: .bold, design: .rounded))
+                                .foregroundStyle(theme.text)
+                        }
+                        Spacer()
+                        if let cycle = store.activeCycle {
+                            Text("Day \(cycle.durationDays)")
+                                .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                                .foregroundStyle(theme.success)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background {
+                                    Capsule().fill(theme.success.opacity(0.15))
+                                }
+                        }
                     }
-                    Spacer()
+                    
                     if let cycle = store.activeCycle {
-                        Text("Day \(cycle.durationDays)")
-                            .font(.system(size: 14, weight: .semibold, design: .monospaced))
-                            .foregroundStyle(theme.success)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 4)
-                            .background {
-                                Capsule().fill(theme.success.opacity(0.15))
-                            }
-                    }
-                }
-                
-                if let cycle = store.activeCycle {
-                    // Cycle progress bar
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(cycle.name)
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(theme.textMuted)
-                        
-                        GeometryReader { geo in
-                            ZStack(alignment: .leading) {
-                                RoundedRectangle(cornerRadius: 4)
-                                    .fill(Color.white.opacity(0.08))
-                                    .frame(height: 6)
-                                RoundedRectangle(cornerRadius: 4)
-                                    .fill(LinearGradient(colors: [theme.primary, theme.primarySoft], startPoint: .leading, endPoint: .trailing))
-                                    .frame(width: min(geo.size.width, geo.size.width * min(Double(cycle.durationDays) / 90.0, 1.0)), height: 6)
-                                    .shadow(color: theme.primary.opacity(0.5), radius: 4)
-                            }
-                        }
-                        .frame(height: 6)
-                        
-                        HStack {
-                            Text("\(cycle.totalInjections) injections logged")
-                                .font(.system(size: 12, weight: .medium))
+                        // Cycle progress bar
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(cycle.name)
+                                .font(.system(size: 14, weight: .medium, design: .rounded))
                                 .foregroundStyle(theme.textMuted)
-                            Spacer()
-                            Text("\(cycle.peptides.count) peptides")
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(theme.primary)
+                            
+                            GeometryReader { geo in
+                                ZStack(alignment: .leading) {
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(Color.white.opacity(0.08))
+                                        .frame(height: 6)
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(LinearGradient(colors: [theme.primary, theme.primarySoft], startPoint: .leading, endPoint: .trailing))
+                                        .frame(width: min(geo.size.width, geo.size.width * min(Double(cycle.durationDays) / 90.0, 1.0)), height: 6)
+                                        .shadow(color: theme.primary.opacity(0.5), radius: 4)
+                                }
+                            }
+                            .frame(height: 6)
+                            
+                            HStack {
+                                Text("\(cycle.totalInjections) injections logged")
+                                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                                    .foregroundStyle(theme.textMuted)
+                                Spacer()
+                                Text("\(cycle.peptides.count) peptides")
+                                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                                    .foregroundStyle(theme.primary)
+                            }
                         }
+                    } else {
+                        // No active cycle
+                        VStack(spacing: 8) {
+                            Text("No active cycle")
+                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                .foregroundStyle(theme.textMuted)
+                            Text("Start a new cycle from the Tracker tab")
+                                .font(.system(size: 12, design: .rounded))
+                                .foregroundStyle(theme.textMuted.opacity(0.7))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
                     }
-                } else {
-                    // No active cycle
-                    VStack(spacing: 8) {
-                        Text("No active cycle")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(theme.textMuted)
-                        Text("Start a new cycle from the Tracker tab")
-                            .font(.system(size: 12))
-                            .foregroundStyle(theme.textMuted.opacity(0.7))
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
                 }
             }
         }
+        .buttonStyle(.plain)
     }
     
     // MARK: - Goal Cards
@@ -340,25 +370,30 @@ struct HomeView: View {
     }
     
     private func goalCard(title: String, icon: String, color: Color, peptideCount: Int) -> some View {
-        GlassCard(padding: 14) {
-            VStack(alignment: .leading, spacing: 10) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(color.opacity(0.15))
-                        .frame(width: 40, height: 40)
-                    Image(systemName: icon)
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(color)
+        Button {
+            selectedTab = 3
+        } label: {
+            GlassCard(padding: 14) {
+                VStack(alignment: .leading, spacing: 10) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(color.opacity(0.15))
+                            .frame(width: 40, height: 40)
+                        Image(systemName: icon)
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(color)
+                    }
+                    Text(title)
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .foregroundStyle(theme.text)
+                    Text("\(peptideCount) peptides")
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(theme.textMuted)
                 }
-                Text(title)
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(theme.text)
-                Text("\(peptideCount) peptides")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(theme.textMuted)
+                .frame(width: 110)
             }
-            .frame(width: 110)
         }
+        .buttonStyle(.plain)
     }
     
     // MARK: - My Favorites
