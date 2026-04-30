@@ -45,11 +45,25 @@ struct PeptideDetailView: View {
         }
         .background(theme.background.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
         .onAppear { store.markViewed(peptide) }
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(theme.textMuted)
+                        .frame(width: 36, height: 36)
+                        .background {
+                            Circle().fill(theme.textMuted.opacity(0.1))
+                        }
+                }
+            }
             ToolbarItem(placement: .principal) {
                 Text(peptide.name)
-                    .font(.system(size: 16, weight: .bold))
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
                     .foregroundStyle(theme.text)
             }
             ToolbarItem(placement: .topBarTrailing) {
