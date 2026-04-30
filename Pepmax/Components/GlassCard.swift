@@ -93,6 +93,7 @@ struct GlowButton: View {
             withAnimation(.spring(response: 0.3)) {
                 isPressed = true
             }
+            Haptics.impact(.light)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                 withAnimation(.spring(response: 0.3)) {
                     isPressed = false

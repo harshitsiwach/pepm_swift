@@ -22,6 +22,16 @@ struct HomeView: View {
                     // Active Cycle
                     activeCycleCard
                     
+                    // My Favorites
+                    if !store.favoritePeptides.isEmpty {
+                        favoritesSection
+                    }
+                    
+                    // Recently Viewed
+                    if !store.recentlyViewedPeptides.isEmpty {
+                        recentlyViewedSection
+                    }
+                    
                     // Goal Cards
                     goalCardsSection
                     
@@ -310,7 +320,134 @@ struct HomeView: View {
         }
     }
     
+    // MARK: - My Favorites
+    
+    private var favoritesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                HStack(spacing: 6) {
+                    Image(systemName: "heart.fill")
+                        .foregroundStyle(theme.primary)
+                    Text("My Favorites")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundStyle(theme.text)
+                }
+                Spacer()
+                Text("\(store.favoritePeptides.count)")
+                    .font(.system(size: 14, weight: .bold, design: .monospaced))
+                    .foregroundStyle(theme.primary)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background { Capsule().fill(theme.primary.opacity(0.12)) }
+            }
+            
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(store.favoritePeptides) { peptide in
+                        NavigationLink(destination: PeptideDetailView(peptide: peptide)) {
+                            favoriteCard(peptide)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+    
+    private func favoriteCard(_ peptide: Peptide) -> some View {
+        GlassCard(padding: 14) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(CategoryColors.color(for: peptide.category).opacity(0.15))
+                            .frame(width: 36, height: 36)
+                        Image(systemName: CategoryColors.icon(for: peptide.category))
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(CategoryColors.color(for: peptide.category))
+                    }
+                    Spacer()
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 12))
+                        .foregroundStyle(theme.primary)
+                }
+                
+                Text(peptide.name)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(theme.text)
+                    .lineLimit(1)
+                
+                Text(peptide.category)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(theme.textMuted)
+                    .lineLimit(1)
+            }
+            .frame(width: 130)
+        }
+    }
+    
+    // MARK: - Recently Viewed
+    
+    private var recentlyViewedSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                HStack(spacing: 6) {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .foregroundStyle(Color(hex: "6C5CE7"))
+                    Text("Recently Viewed")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundStyle(theme.text)
+                }
+                Spacer()
+            }
+            
+            ForEach(store.recentlyViewedPeptides.prefix(5)) { peptide in
+                NavigationLink(destination: PeptideDetailView(peptide: peptide)) {
+                    recentRow(peptide)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+    
+    private func recentRow(_ peptide: Peptide) -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(CategoryColors.color(for: peptide.category).opacity(0.12))
+                    .frame(width: 38, height: 38)
+                Image(systemName: CategoryColors.icon(for: peptide.category))
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(CategoryColors.color(for: peptide.category))
+            }
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(peptide.name)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(theme.text)
+                    .lineLimit(1)
+                Text(peptide.category)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(theme.textMuted)
+            }
+            
+            Spacer()
+            
+            if store.isFavorite(peptide) {
+                Image(systemName: "heart.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(theme.primary)
+            }
+            
+            Image(systemName: "chevron.right")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(theme.textMuted.opacity(0.5))
+        }
+        .padding(.vertical, 6)
+    }
+    
     // MARK: - Featured Peptides
+
     
     private var featuredPeptidesSection: some View {
         VStack(alignment: .leading, spacing: 12) {

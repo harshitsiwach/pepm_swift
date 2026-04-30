@@ -25,3 +25,7 @@ Carthage/Build/
 
 ## XcodeGen
 project.yml
+
+# Exclude original source files
+pep150.txt
+BUILD_PROMPT.txt

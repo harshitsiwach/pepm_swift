@@ -40,11 +40,24 @@ struct PeptideDetailView: View {
         }
         .background(theme.background.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear { store.markViewed(peptide) }
         .toolbar {
             ToolbarItem(placement: .principal) {
                 Text(peptide.name)
                     .font(.system(size: 16, weight: .bold))
                     .foregroundStyle(theme.text)
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    withAnimation(.spring(response: 0.3)) {
+                        store.toggleFavorite(peptide)
+                    }
+                } label: {
+                    Image(systemName: store.isFavorite(peptide) ? "heart.fill" : "heart")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(store.isFavorite(peptide) ? theme.primary : theme.textMuted)
+                        .scaleEffect(store.isFavorite(peptide) ? 1.15 : 1.0)
+                }
             }
         }
     }

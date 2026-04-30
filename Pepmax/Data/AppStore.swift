@@ -1,32 +1,78 @@
 import Foundation
+import UIKit
 
 class AppStore: ObservableObject {
     @Published var profile: UserProfile { didSet { saveProfile() } }
     @Published var cycles: [Cycle] { didSet { saveCycles() } }
     @Published var peptides: [Peptide] = []
+    @Published var favoritePeptideNames: Set<String> { didSet { saveFavorites() } }
+    @Published var recentlyViewedNames: [String] { didSet { saveRecents() } }
     
     init() {
         self.profile = Self.loadProfile()
         self.cycles = Self.loadCycles()
+        self.favoritePeptideNames = Self.loadFavorites()
+        self.recentlyViewedNames = Self.loadRecents()
         self.peptides = PeptideDatabase.all
     }
+    
+    // MARK: - Favorites
+    
+    func isFavorite(_ peptide: Peptide) -> Bool {
+        favoritePeptideNames.contains(peptide.name)
+    }
+    
+    func toggleFavorite(_ peptide: Peptide) {
+        if favoritePeptideNames.contains(peptide.name) {
+            favoritePeptideNames.remove(peptide.name)
+            Haptics.impact(.light)
+        } else {
+            favoritePeptideNames.insert(peptide.name)
+            Haptics.impact(.medium)
+        }
+    }
+    
+    var favoritePeptides: [Peptide] {
+        peptides.filter { favoritePeptideNames.contains($0.name) }
+    }
+    
+    // MARK: - Recently Viewed
+    
+    func markViewed(_ peptide: Peptide) {
+        recentlyViewedNames.removeAll { $0 == peptide.name }
+        recentlyViewedNames.insert(peptide.name, at: 0)
+        if recentlyViewedNames.count > 10 {
+            recentlyViewedNames = Array(recentlyViewedNames.prefix(10))
+        }
+    }
+    
+    var recentlyViewedPeptides: [Peptide] {
+        recentlyViewedNames.compactMap { name in
+            peptides.first { $0.name == name }
+        }
+    }
+    
+    // MARK: - Cycles
     
     var activeCycle: Cycle? { cycles.first(where: { $0.isActive }) }
     
     func createCycle(name: String, peptides: [String]) {
         cycles.append(Cycle(name: name, peptides: peptides))
+        Haptics.notification(.success)
     }
     
     func endCycle(id: UUID) {
         if let idx = cycles.firstIndex(where: { $0.id == id }) {
             cycles[idx].isActive = false
             cycles[idx].endDate = Date()
+            Haptics.notification(.warning)
         }
     }
     
     func addInjectionLog(cycleId: UUID, log: InjectionLog) {
         if let idx = cycles.firstIndex(where: { $0.id == cycleId }) {
             cycles[idx].logs.append(log)
+            Haptics.notification(.success)
         }
     }
     
@@ -44,6 +90,8 @@ class AppStore: ObservableObject {
     }
     
     var totalInjections: Int { cycles.reduce(0) { $0 + $1.totalInjections } }
+    
+    // MARK: - Persistence
     
     private static func loadProfile() -> UserProfile {
         guard let data = UserDefaults.standard.data(forKey: "user_profile"),
@@ -67,5 +115,38 @@ class AppStore: ObservableObject {
         if let data = try? JSONEncoder().encode(cycles) {
             UserDefaults.standard.set(data, forKey: "cycles")
         }
+    }
+    
+    private static func loadFavorites() -> Set<String> {
+        guard let arr = UserDefaults.standard.array(forKey: "favorite_peptides") as? [String] else { return [] }
+        return Set(arr)
+    }
+    
+    private func saveFavorites() {
+        UserDefaults.standard.set(Array(favoritePeptideNames), forKey: "favorite_peptides")
+    }
+    
+    private static func loadRecents() -> [String] {
+        UserDefaults.standard.stringArray(forKey: "recent_peptides") ?? []
+    }
+    
+    private func saveRecents() {
+        UserDefaults.standard.set(recentlyViewedNames, forKey: "recent_peptides")
+    }
+}
+
+// MARK: - Haptics Engine
+
+enum Haptics {
+    static func impact(_ style: UIImpactFeedbackGenerator.FeedbackStyle) {
+        UIImpactFeedbackGenerator(style: style).impactOccurred()
+    }
+    
+    static func notification(_ type: UINotificationFeedbackGenerator.FeedbackType) {
+        UINotificationFeedbackGenerator().notificationOccurred(type)
+    }
+    
+    static func selection() {
+        UISelectionFeedbackGenerator().selectionChanged()
     }
 }
