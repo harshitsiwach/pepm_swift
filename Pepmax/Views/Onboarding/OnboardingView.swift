@@ -705,7 +705,8 @@ struct OnboardingView: View {
             country: selectedCountry,
             isDarkMode: true,
             unitSystem: selectedUnit,
-            hasCompletedOnboarding: true
+            hasCompletedOnboarding: true,
+            isAppLockEnabled: false
         )
     }
 }

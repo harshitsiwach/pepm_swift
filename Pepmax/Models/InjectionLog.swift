@@ -65,6 +65,7 @@ struct UserProfile: Codable {
     var isDarkMode: Bool
     var unitSystem: UnitSystem
     var hasCompletedOnboarding: Bool
+    var isAppLockEnabled: Bool
     
     enum Gender: String, Codable, CaseIterable {
         case male = "Male"
@@ -159,6 +160,7 @@ struct UserProfile: Codable {
         country: "United States",
         isDarkMode: true,
         unitSystem: .metric,
-        hasCompletedOnboarding: false
+        hasCompletedOnboarding: false,
+        isAppLockEnabled: false
     )
 }

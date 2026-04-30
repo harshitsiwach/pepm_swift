@@ -20,6 +20,7 @@
 		7B737B5984E3EB3FA7C71228 /* PepmaxApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B251DA20045A229349CB01E5 /* PepmaxApp.swift */; };
 		B284E269B9D9915CFF0C5BB4 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41912C7A265173DDF0302DC2 /* Theme.swift */; };
 		C2C96BC0FFB690AC581DFB7F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACA9C85C489CBFA2BA235AFD /* SettingsView.swift */; };
+		D1625E200446534EEF4DD4A8 /* DailyTips.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA7B6841000571E9BC500456 /* DailyTips.swift */; };
 		DA6616DFB7764F91BDB897D7 /* InjectionLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7F9E8A66AEF4ABA181E4BD7 /* InjectionLog.swift */; };
 		E6E870581ED175160AECE104 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 915F5BB95526A0354F33E8E2 /* OnboardingView.swift */; };
 		EAEBE0958A47790AC6CBAC22 /* PeptideDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = A905A21DE4EBD2D5AE2F7276 /* PeptideDatabase.swift */; };
@@ -48,6 +49,7 @@
 		B251DA20045A229349CB01E5 /* PepmaxApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PepmaxApp.swift; sourceTree = "<group>"; };
 		C18EF259A8D82A7F17B053C3 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		CD3EEE5B28BCA704CE8DC6BA /* CompareView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompareView.swift; sourceTree = "<group>"; };
+		DA7B6841000571E9BC500456 /* DailyTips.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyTips.swift; sourceTree = "<group>"; };
 		DB305BD36B0966F647386DC6 /* GlassCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassCard.swift; sourceTree = "<group>"; };
 		DEB98418A1CC329AB7B74DE1 /* RemindersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemindersView.swift; sourceTree = "<group>"; };
 		F7F9E8A66AEF4ABA181E4BD7 /* InjectionLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InjectionLog.swift; sourceTree = "<group>"; };
@@ -58,6 +60,7 @@
 			isa = PBXGroup;
 			children = (
 				66BB87C1FA1E5BF9B35B3811 /* AppStore.swift */,
+				DA7B6841000571E9BC500456 /* DailyTips.swift */,
 				AE4E5CEA9B44FF7A15B276AB /* NotificationManager.swift */,
 				A905A21DE4EBD2D5AE2F7276 /* PeptideDatabase.swift */,
 				4ADA945858E2E11852D9EF81 /* peptides.csv */,
@@ -260,6 +263,7 @@
 				EC834DB147FF971AB7A8A964 /* AppStore.swift in Sources */,
 				0E7B7923038A195A932F126A /* CalculatorView.swift in Sources */,
 				ED2DF7CCBAC6BB3DB2A88205 /* CompareView.swift in Sources */,
+				D1625E200446534EEF4DD4A8 /* DailyTips.swift in Sources */,
 				1097B2779E7669C07B591FA8 /* EncyclopediaView.swift in Sources */,
 				542461D01C29D8EE2ED4D684 /* GlassCard.swift in Sources */,
 				28112F5EA20A9D9EB6B77E3F /* HomeView.swift in Sources */,

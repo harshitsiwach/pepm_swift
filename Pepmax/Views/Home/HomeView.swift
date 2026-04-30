@@ -19,6 +19,9 @@ struct HomeView: View {
                     // Stats row
                     statsRow
                     
+                    // Daily Tip
+                    dailyTipCard
+                    
                     // Active Cycle
                     activeCycleCard
                     
@@ -201,6 +204,44 @@ struct HomeView: View {
                     .foregroundStyle(theme.textMuted)
             }
             .frame(maxWidth: .infinity)
+        }
+    }
+    
+    // MARK: - Daily Tip
+    
+    private var dailyTipCard: some View {
+        let tip = DailyTips.todaysTip
+        let tipColor = Color(hex: tip.color)
+        
+        return GlassCard(padding: 14) {
+            HStack(spacing: 14) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(tipColor.opacity(0.12))
+                        .frame(width: 44, height: 44)
+                    Image(systemName: tip.icon)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(tipColor)
+                }
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        Text("💡")
+                            .font(.system(size: 10))
+                        Text("Daily Tip")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(tipColor)
+                    }
+                    Text(tip.title)
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(theme.text)
+                    Text(tip.body)
+                        .font(.system(size: 12, weight: .regular))
+                        .foregroundStyle(theme.textMuted)
+                        .lineSpacing(2)
+                        .lineLimit(3)
+                }
+            }
         }
     }
     

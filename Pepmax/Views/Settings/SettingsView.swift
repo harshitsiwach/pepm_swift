@@ -20,7 +20,7 @@ struct SettingsView: View {
                         Spacer()
                     }
                     
-                    // Appearance
+                    // Appearance & Security
                     GlassCard {
                         VStack(alignment: .leading, spacing: 16) {
                             sectionHeader(title: "Appearance", icon: "paintbrush.fill")
@@ -36,6 +36,23 @@ struct SettingsView: View {
                                 }
                                 Spacer()
                                 Toggle("", isOn: $store.profile.isDarkMode)
+                                    .tint(theme.primary)
+                                    .labelsHidden()
+                            }
+                            
+                            Divider().foregroundStyle(theme.border)
+                            
+                            HStack {
+                                HStack(spacing: 10) {
+                                    Image(systemName: "faceid")
+                                        .font(.system(size: 18))
+                                        .foregroundStyle(Color(hex: "00B894"))
+                                    Text("App Lock")
+                                        .font(.system(size: 15, weight: .medium))
+                                        .foregroundStyle(theme.text)
+                                }
+                                Spacer()
+                                Toggle("", isOn: $store.profile.isAppLockEnabled)
                                     .tint(theme.primary)
                                     .labelsHidden()
                             }
