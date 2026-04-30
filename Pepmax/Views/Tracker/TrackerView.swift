@@ -5,6 +5,7 @@ struct TrackerView: View {
     @Environment(\.isDarkMode) private var isDarkMode
     @State private var showNewCycleSheet = false
     @State private var showLogSheet = false
+    @State private var showAnalyticsSheet = false
     
     private var theme: LiquidGlassTheme { isDarkMode ? .dark : .light }
     
@@ -18,6 +19,20 @@ struct TrackerView: View {
                             .font(.system(size: 28, weight: .bold))
                             .foregroundStyle(theme.text)
                         Spacer()
+                        
+                        Button {
+                            showAnalyticsSheet = true
+                        } label: {
+                            Image(systemName: "chart.bar.fill")
+                                .font(.system(size: 20))
+                                .foregroundStyle(theme.primary)
+                                .frame(width: 44, height: 44)
+                                .background {
+                                    Circle().fill(theme.primary.opacity(0.12))
+                                }
+                        }
+                        .buttonStyle(.plain)
+                        
                         GlowButton(title: "New Cycle", icon: "plus", isSmall: true) {
                             showNewCycleSheet = true
                         }
@@ -55,6 +70,10 @@ struct TrackerView: View {
                 LogInjectionSheet()
                     .environmentObject(store)
                     .environment(\.isDarkMode, isDarkMode)
+            }
+            .sheet(isPresented: $showAnalyticsSheet) {
+                CycleAnalyticsView()
+                    .environmentObject(store)
             }
         }
     }
