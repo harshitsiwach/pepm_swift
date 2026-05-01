@@ -5,6 +5,7 @@ struct HomeView: View {
     @Environment(\.isDarkMode) private var isDarkMode
     @Binding var selectedTab: Int
     @State private var showSettings = false
+    @State private var showAIChat = false
     
     private var theme: LiquidGlassTheme { isDarkMode ? .dark : .light }
     
@@ -52,6 +53,9 @@ struct HomeView: View {
                     .environmentObject(store)
                     .environment(\.isDarkMode, isDarkMode)
             }
+            .fullScreenCover(isPresented: $showAIChat) {
+                AIChatView()
+            }
         }
     }
     
@@ -79,6 +83,21 @@ struct HomeView: View {
                     }
             }
             Spacer()
+            // AI Chat Button
+            Button {
+                showAIChat = true
+            } label: {
+                ZStack {
+                    Circle()
+                        .fill(Color(hex: "0984E3").opacity(0.15))
+                        .frame(width: 48, height: 48)
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 20, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Color(hex: "0984E3"))
+                }
+            }
+            .buttonStyle(.plain)
+            
             // Profile avatar -> Settings
             Button {
                 showSettings = true
@@ -670,6 +689,195 @@ struct HomeView: View {
                 
                 Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(theme.textMuted)
             }
+        }
+    }
+}
+
+// MARK: - AI Chat View
+
+struct Message: Identifiable {
+    let id = UUID()
+    let content: String
+    let isUser: Bool
+    let timestamp = Date()
+}
+
+struct AIChatView: View {
+    @Environment(\.isDarkMode) private var isDarkMode
+    @Environment(\.dismiss) private var dismiss
+    
+    @State private var text = ""
+    @State private var messages: [Message] = [
+        Message(content: "Hi there! I am your local AI Compound Assistant. How can I help you optimize your health today?", isUser: false)
+    ]
+    @State private var isThinking = false
+    
+    private var theme: LiquidGlassTheme { isDarkMode ? .dark : .light }
+    
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                // Chat history
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(spacing: 16) {
+                            ForEach(messages) { msg in
+                                ChatBubble(message: msg)
+                                    .id(msg.id)
+                            }
+                            if isThinking {
+                                ThinkingBubble()
+                                    .id("thinking")
+                            }
+                        }
+                        .padding(20)
+                    }
+                    .onChange(of: messages.count) { _ in
+                        withAnimation(.easeOut) {
+                            proxy.scrollTo(messages.last?.id, anchor: .bottom)
+                        }
+                    }
+                    .onChange(of: isThinking) { _ in
+                        withAnimation(.easeOut) {
+                            proxy.scrollTo("thinking", anchor: .bottom)
+                        }
+                    }
+                }
+                
+                // Input area
+                VStack(spacing: 0) {
+                    Divider().foregroundStyle(theme.border)
+                    HStack(spacing: 12) {
+                        TextField("Ask about compounds, cycles...", text: $text)
+                            .font(.system(size: 16))
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            .background(Color.white.opacity(isDarkMode ? 0.05 : 0.4))
+                            .clipShape(Capsule())
+                            .overlay(Capsule().stroke(theme.border, lineWidth: 1))
+                            .submitLabel(.send)
+                            .onSubmit { sendMessage() }
+                        
+                        Button {
+                            sendMessage()
+                        } label: {
+                            ZStack {
+                                Circle()
+                                    .fill(text.isEmpty ? theme.primarySoft.opacity(0.5) : Color(hex: "0984E3"))
+                                    .frame(width: 44, height: 44)
+                                    .shadow(color: text.isEmpty ? .clear : Color(hex: "0984E3").opacity(0.4), radius: 6)
+                                Image(systemName: "arrow.up")
+                                    .font(.system(size: 18, weight: .bold))
+                                    .foregroundStyle(.white)
+                            }
+                        }
+                        .disabled(text.isEmpty)
+                        .buttonStyle(.plain)
+                    }
+                    .padding(16)
+                    .background(theme.background)
+                }
+            }
+            .background(theme.background.ignoresSafeArea())
+            .navigationTitle("AI Assistant")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Done") { dismiss() }
+                        .foregroundStyle(theme.primary)
+                }
+                ToolbarItem(placement: .principal) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "sparkles")
+                            .foregroundStyle(Color(hex: "0984E3"))
+                        Text("AI Assistant")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundStyle(theme.text)
+                    }
+                }
+            }
+        }
+    }
+    
+    private func sendMessage() {
+        let msg = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !msg.isEmpty else { return }
+        
+        messages.append(Message(content: msg, isUser: true))
+        text = ""
+        isThinking = true
+        
+        // Placeholder simulation for the UI
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            isThinking = false
+            messages.append(Message(content: "The local AI engine will connect to the GGUF model here to provide insights on peptides and steroids.", isUser: false))
+        }
+    }
+}
+
+struct ChatBubble: View {
+    let message: Message
+    @Environment(\.isDarkMode) private var isDarkMode
+    
+    private var theme: LiquidGlassTheme { isDarkMode ? .dark : .light }
+    
+    var body: some View {
+        HStack {
+            if message.isUser { Spacer() }
+            
+            Text(message.content)
+                .font(.system(size: 16))
+                .foregroundStyle(message.isUser ? .white : theme.text)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(
+                    Group {
+                        if message.isUser {
+                            Color(hex: "0984E3")
+                        } else {
+                            Color.white.opacity(isDarkMode ? 0.05 : 0.4)
+                        }
+                    }
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 20))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(message.isUser ? Color.clear : theme.border, lineWidth: 1)
+                )
+                .shadow(color: message.isUser ? Color(hex: "0984E3").opacity(0.3) : .clear, radius: 4, x: 0, y: 2)
+            
+            if !message.isUser { Spacer() }
+        }
+    }
+}
+
+struct ThinkingBubble: View {
+    @State private var opacity: Double = 0.4
+    @Environment(\.isDarkMode) private var isDarkMode
+    
+    private var theme: LiquidGlassTheme { isDarkMode ? .dark : .light }
+    
+    var body: some View {
+        HStack {
+            HStack(spacing: 4) {
+                Circle().fill(theme.primary).frame(width: 8, height: 8)
+                    .opacity(opacity)
+                    .animation(.easeInOut(duration: 0.6).repeatForever().delay(0), value: opacity)
+                Circle().fill(theme.primary).frame(width: 8, height: 8)
+                    .opacity(opacity)
+                    .animation(.easeInOut(duration: 0.6).repeatForever().delay(0.2), value: opacity)
+                Circle().fill(theme.primary).frame(width: 8, height: 8)
+                    .opacity(opacity)
+                    .animation(.easeInOut(duration: 0.6).repeatForever().delay(0.4), value: opacity)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 16)
+            .background(Color.white.opacity(isDarkMode ? 0.05 : 0.4))
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .overlay(RoundedRectangle(cornerRadius: 20).stroke(theme.border, lineWidth: 1))
+            .onAppear { opacity = 1.0 }
+            
+            Spacer()
         }
     }
 }
