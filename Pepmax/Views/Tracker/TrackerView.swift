@@ -9,6 +9,7 @@ struct TrackerView: View {
     @State private var showAnalyticsSheet = false
     @State private var showBloodworkSheet = false
     @State private var showRotationMap = false
+    @State private var showPCTWizard = false
     
     private var theme: LiquidGlassTheme { isDarkMode ? .dark : .light }
     
@@ -31,6 +32,17 @@ struct TrackerView: View {
                                 .foregroundStyle(Color(hex: "FF2D55"))
                                 .frame(width: 44, height: 44)
                                 .background { Circle().fill(Color(hex: "FF2D55").opacity(0.12)) }
+                        }
+                        .buttonStyle(.plain)
+                        
+                        Button {
+                            showPCTWizard = true
+                        } label: {
+                            Image(systemName: "shield.fill")
+                                .font(.system(size: 20))
+                                .foregroundStyle(Color(hex: "0984E3"))
+                                .frame(width: 44, height: 44)
+                                .background { Circle().fill(Color(hex: "0984E3").opacity(0.12)) }
                         }
                         .buttonStyle(.plain)
                         
@@ -106,6 +118,10 @@ struct TrackerView: View {
             }
             .sheet(isPresented: $showRotationMap) {
                 SiteRotationView()
+                    .environmentObject(store)
+            }
+            .sheet(isPresented: $showPCTWizard) {
+                PCTDashboardView()
                     .environmentObject(store)
             }
         }
@@ -1102,6 +1118,324 @@ struct SiteRotationView: View {
         HStack(spacing: 4) {
             Circle().fill(color).frame(width: 10, height: 10)
             Text(text).font(.system(size: 10, weight: .semibold)).foregroundStyle(theme.textMuted)
+        }
+    }
+}
+
+// MARK: - PCT Wizard View
+
+struct PCTWizardView: View {
+    @EnvironmentObject var store: AppStore
+    @Environment(\.isDarkMode) private var isDarkMode
+    @Environment(\.dismiss) private var dismiss
+    
+    @State private var selectedProtocol: ProtocolType = .nolvadex
+    @State private var startDate = Date()
+    @State private var customName = ""
+    
+    private var theme: LiquidGlassTheme { isDarkMode ? .dark : .light }
+    
+    enum ProtocolType: String, CaseIterable {
+        case nolvadex = "Standard Nolvadex"
+        case clomid = "Standard Clomid"
+        case heavy = "Heavy (Clomid + Nolva)"
+        
+        var description: String {
+            switch self {
+            case .nolvadex: return "4 Weeks. Best for mild cycles. 40/40/20/20."
+            case .clomid: return "4 Weeks. Stronger restart. 50/50/25/25."
+            case .heavy: return "4 Weeks. For suppressive cycles."
+            }
+        }
+        
+        var meds: [PCTMedication] {
+            switch self {
+            case .nolvadex:
+                return [PCTMedication(name: "Nolvadex (Tamoxifen)", protocolWeeks: ["40mg/day", "40mg/day", "20mg/day", "20mg/day"])]
+            case .clomid:
+                return [PCTMedication(name: "Clomid (Clomiphene)", protocolWeeks: ["50mg/day", "50mg/day", "25mg/day", "25mg/day"])]
+            case .heavy:
+                return [
+                    PCTMedication(name: "Clomid", protocolWeeks: ["50mg/day", "50mg/day", "25mg/day", "25mg/day"]),
+                    PCTMedication(name: "Nolvadex", protocolWeeks: ["40mg/day", "40mg/day", "20mg/day", "20mg/day"])
+                ]
+            }
+        }
+    }
+    
+    var body: some View {
+        NavigationStack {
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 24) {
+                    
+                    // Header
+                    VStack(spacing: 8) {
+                        Image(systemName: "shield.fill")
+                            .font(.system(size: 40))
+                            .foregroundStyle(Color(hex: "0984E3"))
+                            .shadow(color: Color(hex: "0984E3").opacity(0.4), radius: 10)
+                        
+                        Text("Post Cycle Therapy")
+                            .font(.system(size: 24, weight: .bold))
+                            .foregroundStyle(theme.text)
+                        
+                        Text("Restore your natural testosterone production safely.")
+                            .font(.system(size: 14))
+                            .foregroundStyle(theme.textMuted)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                    }
+                    .padding(.top, 20)
+                    
+                    // Setup
+                    GlassCard {
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text("When does PCT begin?")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundStyle(theme.text)
+                            
+                            DatePicker("Start Date", selection: $startDate, displayedComponents: .date)
+                                .font(.system(size: 14, weight: .medium))
+                                .tint(theme.primary)
+                        }
+                    }
+                    
+                    // Protocols
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Select Protocol")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundStyle(theme.text)
+                        
+                        ForEach(ProtocolType.allCases, id: \.self) { pt in
+                            protocolCard(pt)
+                        }
+                    }
+                    
+                    GlowButton(title: "Start Recovery Protocol", icon: "play.fill", color: Color(hex: "0984E3")) {
+                        startProtocol()
+                    }
+                    .padding(.top, 10)
+                    .padding(.bottom, 40)
+                }
+                .padding(20)
+            }
+            .background(theme.background.ignoresSafeArea())
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .foregroundStyle(theme.textMuted)
+                }
+            }
+        }
+        .presentationDetents([.large])
+    }
+    
+    private func protocolCard(_ pt: ProtocolType) -> some View {
+        Button {
+            withAnimation(.spring) {
+                selectedProtocol = pt
+            }
+        } label: {
+            GlassCard(padding: 16) {
+                HStack(spacing: 16) {
+                    ZStack {
+                        Circle()
+                            .fill(selectedProtocol == pt ? Color(hex: "0984E3") : Color.white.opacity(0.1))
+                            .frame(width: 24, height: 24)
+                        
+                        if selectedProtocol == pt {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(.white)
+                        }
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(pt.rawValue)
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundStyle(theme.text)
+                        Text(pt.description)
+                            .font(.system(size: 13))
+                            .foregroundStyle(theme.textMuted)
+                            .multilineTextAlignment(.leading)
+                    }
+                    Spacer()
+                }
+            }
+            .overlay {
+                if selectedProtocol == pt {
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color(hex: "0984E3"), lineWidth: 2)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+    
+    private func startProtocol() {
+        let pct = PCTProtocol(name: selectedProtocol.rawValue, startDate: startDate, medications: selectedProtocol.meds)
+        store.startPCT(pct)
+        dismiss()
+    }
+}
+
+// MARK: - PCT Dashboard View
+
+struct PCTDashboardView: View {
+    @EnvironmentObject var store: AppStore
+    @Environment(\.isDarkMode) private var isDarkMode
+    @Environment(\.dismiss) private var dismiss
+    
+    @State private var showWizard = false
+    
+    private var theme: LiquidGlassTheme { isDarkMode ? .dark : .light }
+    
+    var body: some View {
+        NavigationStack {
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 24) {
+                    if let pct = store.activePCT {
+                        activeState(pct)
+                    } else {
+                        emptyState
+                    }
+                }
+                .padding(20)
+            }
+            .background(theme.background.ignoresSafeArea())
+            .navigationTitle("PCT Tracker")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                        .foregroundStyle(theme.primary)
+                }
+            }
+            .sheet(isPresented: $showWizard) {
+                PCTWizardView()
+                    .environmentObject(store)
+            }
+        }
+    }
+    
+    private var emptyState: some View {
+        GlassCard {
+            VStack(spacing: 16) {
+                Image(systemName: "shield.slash.fill")
+                    .font(.system(size: 48))
+                    .foregroundStyle(Color(hex: "0984E3").opacity(0.5))
+                
+                Text("No Active PCT")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(theme.text)
+                
+                Text("Post Cycle Therapy helps restore your natural hormone production after a cycle.")
+                    .font(.system(size: 14))
+                    .foregroundStyle(theme.textMuted)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+                
+                GlowButton(title: "Plan PCT", icon: "shield.fill", color: Color(hex: "0984E3")) {
+                    showWizard = true
+                }
+                .padding(.top, 10)
+            }
+            .padding(.vertical, 20)
+        }
+    }
+    
+    private func activeState(_ pct: PCTProtocol) -> some View {
+        VStack(spacing: 20) {
+            // Status Header
+            GlassCard {
+                VStack(spacing: 16) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(pct.name)
+                                .font(.system(size: 20, weight: .bold))
+                                .foregroundStyle(theme.text)
+                            Text("Week \(pct.currentWeek) of \(pct.durationWeeks)")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(Color(hex: "0984E3"))
+                        }
+                        Spacer()
+                        Image(systemName: "shield.fill")
+                            .font(.system(size: 28))
+                            .foregroundStyle(Color(hex: "0984E3"))
+                    }
+                    
+                    // Progress Bar
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color.white.opacity(0.1))
+                                .frame(height: 12)
+                            
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color(hex: "0984E3"))
+                                .frame(width: max(0, min(geo.size.width, geo.size.width * CGFloat(pct.currentWeek) / CGFloat(pct.durationWeeks))), height: 12)
+                                .shadow(color: Color(hex: "0984E3").opacity(0.5), radius: 6)
+                        }
+                    }
+                    .frame(height: 12)
+                    
+                    HStack {
+                        Text("Started \(pct.startDate, style: .date)")
+                            .font(.system(size: 12))
+                            .foregroundStyle(theme.textMuted)
+                        Spacer()
+                        Text("Ends \(pct.endDate, style: .date)")
+                            .font(.system(size: 12))
+                            .foregroundStyle(theme.textMuted)
+                    }
+                }
+            }
+            
+            // Medication Protocol
+            VStack(alignment: .leading, spacing: 16) {
+                Text("This Week's Protocol")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(theme.text)
+                
+                ForEach(pct.medications) { med in
+                    let weekIdx = min(max(0, pct.currentWeek - 1), med.protocolWeeks.count - 1)
+                    let dosage = med.protocolWeeks[weekIdx]
+                    
+                    GlassCard(padding: 16) {
+                        HStack {
+                            Image(systemName: "pills.fill")
+                                .font(.system(size: 18))
+                                .foregroundStyle(Color(hex: "0984E3"))
+                            
+                            Text(med.name)
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundStyle(theme.text)
+                            
+                            Spacer()
+                            
+                            Text(dosage)
+                                .font(.system(size: 16, weight: .bold, design: .monospaced))
+                                .foregroundStyle(theme.text)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background { Capsule().fill(Color.white.opacity(0.1)) }
+                        }
+                    }
+                }
+            }
+            
+            Button {
+                withAnimation {
+                    store.endActivePCT()
+                }
+            } label: {
+                Text("End PCT Early")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(theme.error)
+                    .padding(.vertical, 12)
+            }
+            .padding(.top, 20)
         }
     }
 }

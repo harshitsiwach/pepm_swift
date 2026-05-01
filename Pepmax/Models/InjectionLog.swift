@@ -194,3 +194,48 @@ struct UserProfile: Codable {
         isAppLockEnabled: false
     )
 }
+
+// MARK: - PCT Models
+
+struct PCTMedication: Identifiable, Codable {
+    let id: UUID
+    let name: String
+    let protocolWeeks: [String] // e.g., ["40mg", "40mg", "20mg", "20mg"]
+    
+    init(id: UUID = UUID(), name: String, protocolWeeks: [String]) {
+        self.id = id
+        self.name = name
+        self.protocolWeeks = protocolWeeks
+    }
+}
+
+struct PCTProtocol: Identifiable, Codable {
+    let id: UUID
+    let cycleId: UUID?
+    let name: String
+    let startDate: Date
+    let medications: [PCTMedication]
+    var isActive: Bool
+    
+    init(id: UUID = UUID(), cycleId: UUID? = nil, name: String, startDate: Date, medications: [PCTMedication], isActive: Bool = true) {
+        self.id = id
+        self.cycleId = cycleId
+        self.name = name
+        self.startDate = startDate
+        self.medications = medications
+        self.isActive = isActive
+    }
+    
+    var durationWeeks: Int {
+        medications.map { $0.protocolWeeks.count }.max() ?? 0
+    }
+    
+    var currentWeek: Int {
+        let weeks = Calendar.current.dateComponents([.weekOfYear], from: startDate, to: Date()).weekOfYear ?? 0
+        return max(1, weeks + 1)
+    }
+    
+    var endDate: Date {
+        Calendar.current.date(byAdding: .weekOfYear, value: durationWeeks, to: startDate) ?? Date()
+    }
+}

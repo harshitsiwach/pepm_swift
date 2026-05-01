@@ -13,6 +13,7 @@ class AppStore: ObservableObject {
     @Published var recentlyViewedSteroidNames: [String] { didSet { saveRecentSteroids() } }
     
     @Published var bloodworkLogs: [BloodworkLog] { didSet { saveBloodworkLogs() } }
+    @Published var pctProtocols: [PCTProtocol] { didSet { savePCTProtocols() } }
     
     init() {
         self.profile = Self.loadProfile()
@@ -26,6 +27,7 @@ class AppStore: ObservableObject {
         self.steroids = SteroidDatabase.shared.steroids
         
         self.bloodworkLogs = Self.loadBloodworkLogs()
+        self.pctProtocols = Self.loadPCTProtocols()
     }
     
     // MARK: - Favorites
@@ -144,6 +146,27 @@ class AppStore: ObservableObject {
     
     var totalInjections: Int { cycles.reduce(0) { $0 + $1.totalInjections } }
     
+    // MARK: - PCT Protocol Management
+    
+    var activePCT: PCTProtocol? {
+        pctProtocols.first(where: { $0.isActive })
+    }
+    
+    func startPCT(_ pct: PCTProtocol) {
+        if let idx = pctProtocols.firstIndex(where: { $0.isActive }) {
+            pctProtocols[idx].isActive = false
+        }
+        pctProtocols.append(pct)
+        Haptics.notification(.success)
+    }
+    
+    func endActivePCT() {
+        if let idx = pctProtocols.firstIndex(where: { $0.isActive }) {
+            pctProtocols[idx].isActive = false
+            Haptics.notification(.warning)
+        }
+    }
+    
     // MARK: - Persistence
     
     private static func loadProfile() -> UserProfile {
@@ -213,6 +236,18 @@ class AppStore: ObservableObject {
     private func saveBloodworkLogs() {
         if let data = try? JSONEncoder().encode(bloodworkLogs) {
             UserDefaults.standard.set(data, forKey: "bloodwork_logs")
+        }
+    }
+    
+    private static func loadPCTProtocols() -> [PCTProtocol] {
+        guard let data = UserDefaults.standard.data(forKey: "pct_protocols"),
+              let p = try? JSONDecoder().decode([PCTProtocol].self, from: data) else { return [] }
+        return p
+    }
+    
+    private func savePCTProtocols() {
+        if let data = try? JSONEncoder().encode(pctProtocols) {
+            UserDefaults.standard.set(data, forKey: "pct_protocols")
         }
     }
 }
