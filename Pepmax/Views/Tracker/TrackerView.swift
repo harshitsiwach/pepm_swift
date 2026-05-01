@@ -8,6 +8,7 @@ struct TrackerView: View {
     @State private var showLogSheet = false
     @State private var showAnalyticsSheet = false
     @State private var showBloodworkSheet = false
+    @State private var showRotationMap = false
     
     private var theme: LiquidGlassTheme { isDarkMode ? .dark : .light }
     
@@ -30,6 +31,17 @@ struct TrackerView: View {
                                 .foregroundStyle(Color(hex: "FF2D55"))
                                 .frame(width: 44, height: 44)
                                 .background { Circle().fill(Color(hex: "FF2D55").opacity(0.12)) }
+                        }
+                        .buttonStyle(.plain)
+                        
+                        Button {
+                            showRotationMap = true
+                        } label: {
+                            Image(systemName: "figure.arms.open")
+                                .font(.system(size: 20))
+                                .foregroundStyle(theme.primary)
+                                .frame(width: 44, height: 44)
+                                .background { Circle().fill(theme.primary.opacity(0.12)) }
                         }
                         .buttonStyle(.plain)
                         
@@ -90,6 +102,10 @@ struct TrackerView: View {
             }
             .sheet(isPresented: $showBloodworkSheet) {
                 BloodworkView()
+                    .environmentObject(store)
+            }
+            .sheet(isPresented: $showRotationMap) {
+                SiteRotationView()
                     .environmentObject(store)
             }
         }
@@ -377,6 +393,7 @@ struct LogInjectionSheet: View {
     @State private var route = "Subcutaneous"
     @State private var notes = ""
     @State private var site = ""
+    @State private var isFront = true
     
     private var theme: LiquidGlassTheme { isDarkMode ? .dark : .light }
     
@@ -431,6 +448,11 @@ struct LogInjectionSheet: View {
                                 .pickerStyle(.menu)
                                 .tint(theme.primary)
                             }
+                        }
+                        
+                        // Injection Site Map
+                        if route == "Subcutaneous" || route == "Intramuscular" {
+                            BodyMapView(selectedSite: $site, isFront: $isFront, filterRoute: route)
                         }
                         
                         // Notes
@@ -816,5 +838,270 @@ struct AddBloodworkSheet: View {
         store.bloodworkLogs.append(log)
         Haptics.notification(.success)
         dismiss()
+    }
+}
+
+// MARK: - Injection Site Map Data
+
+struct BodyNode: Identifiable {
+    let id: String
+    let name: String
+    let x: CGFloat // Percentage 0-1
+    let y: CGFloat // Percentage 0-1
+    let isFront: Bool
+    let isSubq: Bool
+    let isIM: Bool
+}
+
+struct InjectionSiteData {
+    static let nodes: [BodyNode] = [
+        // Front - SubQ / IM
+        BodyNode(id: "L_Delt", name: "Left Deltoid", x: 0.25, y: 0.3, isFront: true, isSubq: false, isIM: true),
+        BodyNode(id: "R_Delt", name: "Right Deltoid", x: 0.75, y: 0.3, isFront: true, isSubq: false, isIM: true),
+        BodyNode(id: "L_Ab", name: "Left Abdomen", x: 0.4, y: 0.55, isFront: true, isSubq: true, isIM: false),
+        BodyNode(id: "R_Ab", name: "Right Abdomen", x: 0.6, y: 0.55, isFront: true, isSubq: true, isIM: false),
+        BodyNode(id: "L_Quad", name: "Left Quad", x: 0.35, y: 0.75, isFront: true, isSubq: true, isIM: true),
+        BodyNode(id: "R_Quad", name: "Right Quad", x: 0.65, y: 0.75, isFront: true, isSubq: true, isIM: true),
+        BodyNode(id: "L_Pec", name: "Left Pec", x: 0.35, y: 0.35, isFront: true, isSubq: false, isIM: true),
+        BodyNode(id: "R_Pec", name: "Right Pec", x: 0.65, y: 0.35, isFront: true, isSubq: false, isIM: true),
+        
+        // Back - IM / SubQ
+        BodyNode(id: "L_Glute", name: "Left Glute", x: 0.4, y: 0.6, isFront: false, isSubq: false, isIM: true),
+        BodyNode(id: "R_Glute", name: "Right Glute", x: 0.6, y: 0.6, isFront: false, isSubq: false, isIM: true),
+        BodyNode(id: "L_VGlute", name: "Left Ventrogluteal", x: 0.25, y: 0.55, isFront: false, isSubq: false, isIM: true),
+        BodyNode(id: "R_VGlute", name: "Right Ventrogluteal", x: 0.75, y: 0.55, isFront: false, isSubq: false, isIM: true),
+        BodyNode(id: "L_Lat", name: "Left Lat", x: 0.35, y: 0.4, isFront: false, isSubq: false, isIM: true),
+        BodyNode(id: "R_Lat", name: "Right Lat", x: 0.65, y: 0.4, isFront: false, isSubq: false, isIM: true)
+    ]
+}
+
+struct BodyMapView: View {
+    @Binding var selectedSite: String
+    @Binding var isFront: Bool
+    var filterRoute: String? // "Subcutaneous" or "Intramuscular"
+    
+    @Environment(\.isDarkMode) private var isDarkMode
+    private var theme: LiquidGlassTheme { isDarkMode ? .dark : .light }
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            // Toggle Front/Back
+            HStack {
+                Text("Select Injection Site")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(theme.text)
+                Spacer()
+                Button {
+                    withAnimation(.spring) { isFront.toggle() }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                        Text(isFront ? "Front" : "Back")
+                    }
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(theme.primary)
+                    .padding(.horizontal, 10).padding(.vertical, 6)
+                    .background { Capsule().fill(theme.primary.opacity(0.15)) }
+                }
+                .buttonStyle(.plain)
+            }
+            
+            // Map
+            ZStack {
+                // The Silhouette
+                Image(systemName: isFront ? "figure.arms.open" : "figure.arms.open")
+                    .resizable()
+                    .scaledToFit()
+                    .foregroundStyle(isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.1))
+                    .frame(height: 280)
+                    .scaleEffect(x: isFront ? 1 : -1, y: 1) // mirror for back
+                
+                // Nodes
+                GeometryReader { geo in
+                    let w = geo.size.width
+                    let h = geo.size.height
+                    
+                    let filteredNodes = InjectionSiteData.nodes.filter { node in
+                        node.isFront == isFront &&
+                        (filterRoute == "Subcutaneous" ? node.isSubq : (filterRoute == "Intramuscular" ? node.isIM : true))
+                    }
+                    
+                    ForEach(filteredNodes) { node in
+                        let isSelected = selectedSite == node.name
+                        
+                        Circle()
+                            .fill(isSelected ? theme.primary : Color(hex: "00FF87").opacity(0.7))
+                            .frame(width: isSelected ? 20 : 14, height: isSelected ? 20 : 14)
+                            .overlay {
+                                if isSelected {
+                                    Circle().stroke(theme.primary, lineWidth: 4).scaleEffect(1.5).opacity(0.4)
+                                }
+                            }
+                            .shadow(color: isSelected ? theme.primary.opacity(0.6) : .clear, radius: 4)
+                            .position(x: node.x * w, y: node.y * h)
+                            .onTapGesture {
+                                withAnimation(.spring) {
+                                    selectedSite = node.name
+                                    Haptics.selection()
+                                }
+                            }
+                    }
+                }
+                .frame(width: 140, height: 280) // Restrict width to overlay correctly over the figure
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 20)
+            .background {
+                RoundedRectangle(cornerRadius: 16).fill(Color.white.opacity(isDarkMode ? 0.03 : 0.4))
+            }
+            
+            // Selected Site text
+            if !selectedSite.isEmpty {
+                Text("Selected: \(selectedSite)")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(theme.primary)
+            } else {
+                Text("Tap a glowing node on the body")
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundStyle(theme.textMuted)
+            }
+        }
+    }
+}
+
+// MARK: - Site Rotation Heatmap
+
+struct SiteRotationView: View {
+    @EnvironmentObject var store: AppStore
+    @Environment(\.isDarkMode) private var isDarkMode
+    @Environment(\.dismiss) private var dismiss
+    
+    @State private var isFront = true
+    
+    private var theme: LiquidGlassTheme { isDarkMode ? .dark : .light }
+    
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 24) {
+                    GlassCard {
+                        VStack(spacing: 20) {
+                            Picker("View", selection: $isFront) {
+                                Text("Front Body").tag(true)
+                                Text("Back Body").tag(false)
+                            }
+                            .pickerStyle(.segmented)
+                            
+                            ZStack {
+                                Image(systemName: "figure.arms.open")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .foregroundStyle(isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.1))
+                                    .frame(height: 350)
+                                    .scaleEffect(x: isFront ? 1 : -1, y: 1)
+                                
+                                GeometryReader { geo in
+                                    let w = geo.size.width
+                                    let h = geo.size.height
+                                    
+                                    ForEach(InjectionSiteData.nodes.filter { $0.isFront == isFront }) { node in
+                                        let status = siteStatus(siteName: node.name)
+                                        
+                                        Circle()
+                                            .fill(statusColor(status))
+                                            .frame(width: 20, height: 20)
+                                            .shadow(color: statusColor(status).opacity(0.6), radius: 6)
+                                            .position(x: node.x * w, y: node.y * h)
+                                            .overlay {
+                                                if status > 0 {
+                                                    Text("\(status)d")
+                                                        .font(.system(size: 8, weight: .bold))
+                                                        .foregroundStyle(.white)
+                                                        .position(x: node.x * w, y: node.y * h)
+                                                }
+                                            }
+                                    }
+                                }
+                                .frame(width: 175, height: 350)
+                            }
+                            .padding(.vertical, 20)
+                            
+                            // Legend
+                            HStack(spacing: 16) {
+                                legendItem(color: Color(hex: "FF2D55"), text: "Recent (0-3d)")
+                                legendItem(color: theme.warning, text: "Healing (4-7d)")
+                                legendItem(color: Color(hex: "00FF87"), text: "Safe (7d+)")
+                            }
+                            .padding(.top, 10)
+                        }
+                    }
+                    
+                    GlassCard {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Recent Injection Sites")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundStyle(theme.text)
+                            
+                            let recentLogs = store.cycles.flatMap { $0.logs }
+                                .filter { !$0.injectionSite.isEmpty }
+                                .sorted { $0.date > $1.date }
+                                .prefix(10)
+                            
+                            if recentLogs.isEmpty {
+                                Text("No sites logged yet")
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(theme.textMuted)
+                            } else {
+                                ForEach(Array(recentLogs), id: \.id) { log in
+                                    HStack {
+                                        Text(log.injectionSite)
+                                            .font(.system(size: 14, weight: .semibold))
+                                            .foregroundStyle(theme.text)
+                                        Spacer()
+                                        Text(log.date, style: .relative)
+                                            .font(.system(size: 12))
+                                            .foregroundStyle(theme.textMuted)
+                                    }
+                                    .padding(.vertical, 4)
+                                    Divider().foregroundStyle(theme.border)
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(20)
+            }
+            .background(theme.background.ignoresSafeArea())
+            .navigationTitle("Rotation Map")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                        .foregroundStyle(theme.primary)
+                }
+            }
+        }
+    }
+    
+    // Returns days since last injection at this site. -1 means never/safe.
+    private func siteStatus(siteName: String) -> Int {
+        let logs = store.cycles.flatMap { $0.logs }.filter { $0.injectionSite == siteName }
+        guard let lastLog = logs.sorted(by: { $0.date > $1.date }).first else { return -1 }
+        
+        let components = Calendar.current.dateComponents([.day], from: lastLog.date, to: Date())
+        return components.day ?? 0
+    }
+    
+    private func statusColor(_ days: Int) -> Color {
+        if days < 0 || days >= 7 { return Color(hex: "00FF87") } // Safe
+        if days <= 3 { return Color(hex: "FF2D55") } // Recent/Hot
+        return theme.warning // Healing
+    }
+    
+    private func legendItem(color: Color, text: String) -> some View {
+        HStack(spacing: 4) {
+            Circle().fill(color).frame(width: 10, height: 10)
+            Text(text).font(.system(size: 10, weight: .semibold)).foregroundStyle(theme.textMuted)
+        }
     }
 }
