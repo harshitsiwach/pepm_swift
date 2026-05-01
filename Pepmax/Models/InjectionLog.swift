@@ -239,3 +239,21 @@ struct PCTProtocol: Identifiable, Codable {
         Calendar.current.date(byAdding: .weekOfYear, value: durationWeeks, to: startDate) ?? Date()
     }
 }
+
+// MARK: - Photo Vault Models
+
+struct PhotoLog: Identifiable, Codable {
+    let id: UUID
+    let date: Date
+    let fileName: String
+    var weight: Double?
+    var notes: String
+    
+    init(id: UUID = UUID(), date: Date = Date(), fileName: String, weight: Double? = nil, notes: String = "") {
+        self.id = id
+        self.date = date
+        self.fileName = fileName
+        self.weight = weight
+        self.notes = notes
+    }
+}

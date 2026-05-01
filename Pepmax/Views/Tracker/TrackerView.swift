@@ -1,5 +1,6 @@
 import SwiftUI
 import Charts
+import PhotosUI
 
 struct TrackerView: View {
     @EnvironmentObject var store: AppStore
@@ -10,6 +11,7 @@ struct TrackerView: View {
     @State private var showBloodworkSheet = false
     @State private var showRotationMap = false
     @State private var showPCTWizard = false
+    @State private var showPhotoVault = false
     
     private var theme: LiquidGlassTheme { isDarkMode ? .dark : .light }
     
@@ -43,6 +45,17 @@ struct TrackerView: View {
                                 .foregroundStyle(Color(hex: "0984E3"))
                                 .frame(width: 44, height: 44)
                                 .background { Circle().fill(Color(hex: "0984E3").opacity(0.12)) }
+                        }
+                        .buttonStyle(.plain)
+                        
+                        Button {
+                            showPhotoVault = true
+                        } label: {
+                            Image(systemName: "camera.fill")
+                                .font(.system(size: 20))
+                                .foregroundStyle(Color(hex: "6C5CE7"))
+                                .frame(width: 44, height: 44)
+                                .background { Circle().fill(Color(hex: "6C5CE7").opacity(0.12)) }
                         }
                         .buttonStyle(.plain)
                         
@@ -122,6 +135,10 @@ struct TrackerView: View {
             }
             .sheet(isPresented: $showPCTWizard) {
                 PCTDashboardView()
+                    .environmentObject(store)
+            }
+            .sheet(isPresented: $showPhotoVault) {
+                ProgressPhotoVaultView()
                     .environmentObject(store)
             }
         }
@@ -1437,5 +1454,223 @@ struct PCTDashboardView: View {
             }
             .padding(.top, 20)
         }
+    }
+}
+
+// MARK: - Progress Photo Vault
+
+struct ProgressPhotoVaultView: View {
+    @EnvironmentObject var store: AppStore
+    @Environment(\.isDarkMode) private var isDarkMode
+    @Environment(\.dismiss) private var dismiss
+    
+    @State private var selectedItem: PhotosPickerItem? = nil
+    @State private var showImagePicker = false
+    @State private var fullScreenImageName: String? = nil
+    
+    private var theme: LiquidGlassTheme { isDarkMode ? .dark : .light }
+    
+    let columns = [
+        GridItem(.flexible(), spacing: 12),
+        GridItem(.flexible(), spacing: 12),
+        GridItem(.flexible(), spacing: 12)
+    ]
+    
+    var body: some View {
+        NavigationStack {
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 20) {
+                    if store.photoLogs.isEmpty {
+                        emptyState
+                    } else {
+                        LazyVGrid(columns: columns, spacing: 12) {
+                            ForEach(store.photoLogs.sorted(by: { $0.date > $1.date })) { log in
+                                photoThumbnail(log)
+                            }
+                        }
+                        .padding(20)
+                    }
+                }
+            }
+            .background(theme.background.ignoresSafeArea())
+            .navigationTitle("Progress Vault")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Done") { dismiss() }
+                        .foregroundStyle(theme.textMuted)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    PhotosPicker(selection: $selectedItem, matching: .images, photoLibrary: .shared()) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundStyle(Color(hex: "6C5CE7"))
+                    }
+                }
+            }
+            .onChange(of: selectedItem) { newItem in
+                Task {
+                    if let data = try? await newItem?.loadTransferable(type: Data.self),
+                       let image = UIImage(data: data) {
+                        saveImage(image)
+                    }
+                }
+            }
+            .fullScreenCover(item: Binding(
+                get: { fullScreenImageName.map { FullScreenPhotoItem(fileName: $0) } },
+                set: { fullScreenImageName = $0?.fileName }
+            )) { item in
+                FullScreenPhotoView(fileName: item.fileName)
+            }
+        }
+    }
+    
+    private var emptyState: some View {
+        GlassCard {
+            VStack(spacing: 16) {
+                Image(systemName: "camera.fill")
+                    .font(.system(size: 40))
+                    .foregroundStyle(Color(hex: "6C5CE7"))
+                
+                Text("No Progress Photos")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(theme.text)
+                
+                Text("Securely save your physique updates to track muscle growth and fat loss alongside your cycles.")
+                    .font(.system(size: 14))
+                    .foregroundStyle(theme.textMuted)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+                
+                PhotosPicker(selection: $selectedItem, matching: .images) {
+                    HStack {
+                        Image(systemName: "plus")
+                        Text("Add Photo")
+                    }
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .background {
+                        Capsule().fill(Color(hex: "6C5CE7"))
+                            .shadow(color: Color(hex: "6C5CE7").opacity(0.4), radius: 8)
+                    }
+                }
+                .padding(.top, 10)
+            }
+            .padding(.vertical, 20)
+        }
+        .padding(20)
+    }
+    
+    private func photoThumbnail(_ log: PhotoLog) -> some View {
+        Button {
+            fullScreenImageName = log.fileName
+        } label: {
+            ZStack(alignment: .bottomLeading) {
+                if let uiImage = loadImage(fileName: log.fileName) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(minWidth: 0, maxWidth: .infinity)
+                        .aspectRatio(1, contentMode: .fill)
+                        .clipped()
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                } else {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.white.opacity(0.1))
+                        .aspectRatio(1, contentMode: .fit)
+                        .overlay(Image(systemName: "photo").foregroundStyle(theme.textMuted))
+                }
+                
+                // Date badge
+                Text(log.date.formatted(date: .numeric, time: .omitted))
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 4)
+                    .background(Color.black.opacity(0.6))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .padding(6)
+            }
+            .shadow(color: Color.black.opacity(0.1), radius: 4, y: 2)
+        }
+        .buttonStyle(.plain)
+    }
+    
+    private func saveImage(_ image: UIImage) {
+        guard let data = image.jpegData(compressionQuality: 0.8) else { return }
+        let fileName = UUID().uuidString + ".jpg"
+        let url = getDocumentsDirectory().appendingPathComponent(fileName)
+        
+        do {
+            try data.write(to: url)
+            let log = PhotoLog(fileName: fileName, weight: store.profile.weight)
+            DispatchQueue.main.async {
+                store.photoLogs.append(log)
+                Haptics.notification(.success)
+            }
+        } catch {
+            print("Error saving image: \(error)")
+        }
+    }
+    
+    private func loadImage(fileName: String) -> UIImage? {
+        let url = getDocumentsDirectory().appendingPathComponent(fileName)
+        if let data = try? Data(contentsOf: url) {
+            return UIImage(data: data)
+        }
+        return nil
+    }
+    
+    private func getDocumentsDirectory() -> URL {
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+    }
+}
+
+struct FullScreenPhotoItem: Identifiable {
+    let id = UUID()
+    let fileName: String
+}
+
+struct FullScreenPhotoView: View {
+    let fileName: String
+    @Environment(\.dismiss) private var dismiss
+    
+    @State private var scale: CGFloat = 1.0
+    
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Color.black.ignoresSafeArea()
+            
+            if let uiImage = loadImage(fileName: fileName) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFit()
+                    .scaleEffect(scale)
+                    .gesture(
+                        MagnificationGesture()
+                            .onChanged { val in scale = val }
+                            .onEnded { _ in withAnimation { scale = 1.0 } }
+                    )
+            }
+            
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 30))
+                    .foregroundStyle(.white.opacity(0.7))
+                    .padding()
+            }
+        }
+    }
+    
+    private func loadImage(fileName: String) -> UIImage? {
+        let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent(fileName)
+        if let data = try? Data(contentsOf: url) {
+            return UIImage(data: data)
+        }
+        return nil
     }
 }

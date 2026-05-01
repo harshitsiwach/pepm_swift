@@ -14,6 +14,7 @@ class AppStore: ObservableObject {
     
     @Published var bloodworkLogs: [BloodworkLog] { didSet { saveBloodworkLogs() } }
     @Published var pctProtocols: [PCTProtocol] { didSet { savePCTProtocols() } }
+    @Published var photoLogs: [PhotoLog] { didSet { savePhotoLogs() } }
     
     init() {
         self.profile = Self.loadProfile()
@@ -28,6 +29,7 @@ class AppStore: ObservableObject {
         
         self.bloodworkLogs = Self.loadBloodworkLogs()
         self.pctProtocols = Self.loadPCTProtocols()
+        self.photoLogs = Self.loadPhotoLogs()
     }
     
     // MARK: - Favorites
@@ -248,6 +250,18 @@ class AppStore: ObservableObject {
     private func savePCTProtocols() {
         if let data = try? JSONEncoder().encode(pctProtocols) {
             UserDefaults.standard.set(data, forKey: "pct_protocols")
+        }
+    }
+    
+    private static func loadPhotoLogs() -> [PhotoLog] {
+        guard let data = UserDefaults.standard.data(forKey: "photo_logs"),
+              let p = try? JSONDecoder().decode([PhotoLog].self, from: data) else { return [] }
+        return p
+    }
+    
+    private func savePhotoLogs() {
+        if let data = try? JSONEncoder().encode(photoLogs) {
+            UserDefaults.standard.set(data, forKey: "photo_logs")
         }
     }
 }
